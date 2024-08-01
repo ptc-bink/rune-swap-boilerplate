@@ -14,6 +14,7 @@ const Wallet: React.FC = () => {
   const [psbt, setpsbt] = useState<string>("");
 
   const connectUnisatWallet = async () => {
+    // connect wallet
     try {
       const accounts = await (window as any).unisat.requestAccounts();
       const pubkey = await (window as any).unisat.getPublicKey();

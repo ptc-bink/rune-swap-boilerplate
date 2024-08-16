@@ -77,8 +77,8 @@ const Wallet: React.FC = () => {
   }
 
   const handleSubmit = async () => {
-    if (pubkey === "" || address === "" || sendingAmount === 0 || !walletType) {
-      return console.log("Invalid inputs");
+    if (!pubkey || !address || sendingAmount === 0 || !walletType) {
+      return toast.error("Invalid inputs");
     }
 
     const data = {
@@ -90,34 +90,38 @@ const Wallet: React.FC = () => {
       walletType: walletType
     };
 
-    const { psbt, inputArray, amount1, amount2 } = await getGeneratePsbt(data);
+    const res = await getGeneratePsbt(data);
 
-    const signResult = await waitingSignPsbt(psbt, inputArray, address);
+    if (res) {
+      const { psbt, inputArray, amount1, amount2 } = res;
+      const signResult = await waitingSignPsbt(psbt, inputArray, address);
 
-    // user signed successfully
-    if (signResult.success) {
-      const data = {
-        userSignedHexedPsbt: signResult.data,
-        amount1: amount1,
-        amount2: amount2,
-        inputArray,
-        walletType
-      }
+      console.log('signResult :>> ', signResult);
 
-      const txId = await pushTx(true, data);
+      // user signed successfully
+      if (signResult.success) {
+        const data = {
+          userSignedHexedPsbt: signResult.data,
+          amount1: amount1,
+          amount2: amount2,
+          inputArray,
+          walletType
+        }
 
-      if (txId) {
-        toast.success("Rune swap successfully!")
-        return setTxId(txId);
+        const txId = await pushTx(true, data);
+
+        if (txId) {
+          toast.success("Rune swap successfully!")
+          return setTxId(txId);
+        } else {
+          return toast.error("Try again later")
+        }
       } else {
-        return toast.error("Try again later")
+        const txId = await pushTx(false, "sign psbt failed!");
+
+        toast.error("Try again later");
       }
-    } else {
-      const txId = await pushTx(false, "sign psbt failed!");
-
-      toast.error("Try again later");
     }
-
   }
 
   return (

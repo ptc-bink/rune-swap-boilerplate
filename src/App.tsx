@@ -6,9 +6,11 @@ import {
 } from 'sats-connect';
 
 import Unisat from "./assets/unisat.jpg"
-import axios from 'axios';
 import './App.css';
-import { usersURL, WalletTypes } from './utils';
+import { WalletTypes } from './utils/config';
+import { getGeneratePsbt, pushTx } from './utils/routes';
+import { waitingSignPsbt } from './utils/action';
+import toast from 'react-hot-toast';
 
 const Wallet: React.FC = () => {
 
@@ -19,6 +21,7 @@ const Wallet: React.FC = () => {
   const [sendingAmount, setSendingAmount] = useState<number>(0);
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [walletType, setWalletType] = useState<string>("");
+  const [txId, setTxId] = useState<string>("");
 
   const connectUnisatWallet = async () => {
     try {
@@ -73,42 +76,6 @@ const Wallet: React.FC = () => {
     setWalletType("Hiro");
   }
 
-  const waitingSignPsbt = async (psbt: string, inputArray: Array<number>) => {
-    const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 1000000); // 10 seconds timeout
-    });
-
-    // Race between the async function and timeout
-    const result = await Promise.race([signPsbt(psbt, inputArray), timeoutPromise]);
-
-    if (result === undefined) {
-      //  user not signing psbt within 10s
-      return { success: false, data: "User not signed within 10s" }
-    } else {
-      // user signed psbt
-      return { success: true, data: result }
-    }
-  };
-
-  const signPsbt = async (psbt: string, inputArray: Array<number>) => {
-    const toSignInputs: { index: number; address: string }[] = [];
-    inputArray.map((value: number) =>
-      toSignInputs.push({
-        index: value,
-        address: address,
-      })
-    );
-
-    console.log("toSignInputs ==> ", toSignInputs);
-    console.log('psbt :>> ', psbt);
-
-    const signedPsbt = await (window as any).unisat.signPsbt(psbt, { autoFinalized: false, toSignInputs: toSignInputs });
-
-    return signedPsbt;
-  }
-
   const handleSubmit = async () => {
     if (pubkey === "" || address === "" || sendingAmount === 0 || !walletType) {
       return console.log("Invalid inputs");
@@ -123,39 +90,34 @@ const Wallet: React.FC = () => {
       walletType: walletType
     };
 
-    console.log('data :>> ', data);
+    const { psbt, inputArray, amount1, amount2 } = await getGeneratePsbt(data);
 
-    try {
-      const res = await axios.post(`${usersURL}/generatePsbt`, data);
+    const signResult = await waitingSignPsbt(psbt, inputArray, address);
 
-      if (res.status === 200) {
-        const { psbt, inputArray } = res.data.data;
-        const signResult = await waitingSignPsbt(psbt, inputArray);
-
-        // user signed successfully
-        if (signResult.success) {
-          const data = {
-            userSignedHexedPsbt: signResult.data,
-            amount1: res.data.data.amount1,
-            amount2: res.data.data.amount2,
-            inputArray,
-            walletType
-          }
-
-          const txId = await axios.post(`${usersURL}/pushPsbt`, { success: true, data: data });
-
-          console.log('txId :>> ', txId);
-        } else {
-          const txId = await axios.post(`${usersURL}/pushPsbt`, { success: false, data: "sign psbt failed!!!" });
-
-          console.log("Try again later");
-        }
-      } else {
-        return alert("Try again later")
+    // user signed successfully
+    if (signResult.success) {
+      const data = {
+        userSignedHexedPsbt: signResult.data,
+        amount1: amount1,
+        amount2: amount2,
+        inputArray,
+        walletType
       }
-    } catch (error) {
-      throw error
+
+      const txId = await pushTx(true, data);
+
+      if (txId) {
+        toast.success("Rune swap successfully!")
+        return setTxId(txId);
+      } else {
+        return toast.error("Try again later")
+      }
+    } else {
+      const txId = await pushTx(false, "sign psbt failed!");
+
+      toast.error("Try again later");
     }
+
   }
 
   return (
@@ -176,6 +138,10 @@ const Wallet: React.FC = () => {
                 <p>Set Amount</p>
                 <input type="number" className='text-slate-950' value={sendingAmount} onChange={(e) => setSendingAmount(e.target.valueAsNumber)} />
               </div>
+              <div className='flex gap-2'>
+                <p>Txid:</p>
+                <p>{txId ? txId : ""}</p>
+              </div>
             </div>
             <button onClick={handleSubmit}>Submit</button>
           </div>
@@ -184,7 +150,7 @@ const Wallet: React.FC = () => {
               className="flex hover:cursor-pointer bg-[#131417] broder-[#252B35] broder-1 flex-col items-center w-full px-4 py-8 rounded-xl gap-2"
               onClick={connectUnisatWallet}
             >
-              <img src={Unisat} className="w-10 h-10 rounded-md " />
+              <img alt='unisat' src={Unisat} className="w-10 h-10 rounded-md " />
               <p className="font-bold text-[16px] leading-5">Unisat</p>
             </button>
             {/* <button

@@ -1,47 +1,104 @@
-# Getting Started with Create React App
+# Rune swap Project
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Welcome to the Rune swap Project, a decentralized application (dApp) built in the Bitcoin Rune space. This project leverages React and the Bitcoin CLI to facilitate the swaping of runes. Explore the repository to learn more about how it works and how you can contribute!
 
-## Available Scripts
+## Table of Contents
 
-In the project directory, you can run:
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-### `npm start`
+## Introduction
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+The Rune swap Project is designed to provide a seamless and secure way to swap runes within the Bitcoin ecosystem. By using this dApp, users can ensure their runes are permanently removed from circulation, enhancing the value and scarcity of remaining runes.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Features
 
-npm test
-### `npm test`
+- **Decentralized:** Built on the Bitcoin blockchain for maximum security and transparency.
+- **User-Friendly:** Easy-to-use interface developed with React.
+- **Efficient:** Utilizes the Bitcoin CLI for efficient and reliable operations.
+- **Open Source:** Fully open-source and available for community contributions.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Transfer claim amount of rune token from User wallet to Receiver wallet. 
 
-### `npm run build`
+    - Get rune utxos and btc utxos in user wallet.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+    - Build PSBT with user rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using user wallet publickey, address, and receiver wallet address.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    - Send and Sign PSBT with user wallet.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-### `npm run eject`
+2. After confirmed transaction, Transfer and swap rune token from Receiver wallet to swaping wallet.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+    - Get rune utxos and btc utxos in receiver wallet.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    - Build PSBT with receiver rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using reciver wallet WIF privatekey, address, and swaping wallet address.
+    (At that time, set OP_RETURN as invalid)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+    - Sign PSBT with receiver wallet.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
-## Learn More
+P.S. All necessary values are in network.config.ts.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Installation
+
+To get started with the Rune swap Project, follow these steps:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/ptc-bink/rune-swap-be.git
+   cd rune-swap-be
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Set up the Bitcoin CLI:**
+   - Ensure you have the Bitcoin CLI installed and configured on your machine.
+   - Update the `.env` file with your Bitcoin CLI configuration.
+
+4. **Start the application:**
+   ```bash
+   npm start
+   ```
+
+## Usage
+
+1. **Access the Application:**
+   - Open your browser and navigate to `https://stonefaceords.com/`.
+   
+2. **swap Runes:**
+   - Follow the on-screen instructions to swap your runes securely.
+   - Confirm the transaction through the Bitcoin CLI.
+
+## Contributing
+
+We welcome contributions from the community! To contribute:
+
+1. Fork the repository.
+2. Create a new branch with your feature or bugfix.
+3. Submit a pull request with a detailed description of your changes.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For questions, suggestions, or feedback, feel free to reach out:
+
+- Twitter: [@ptcbink](https://x.com/ptcbink)
+- GitHub: [ptcbink](https://github.com/ptc-bink)
+
+---
+
+Thank you for visiting the Rune swap Project! We hope you find it useful and look forward to your contributions.
+
+Test

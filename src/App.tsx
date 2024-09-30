@@ -8,26 +8,32 @@ import {
 import Unisat from "./assets/unisat.jpg"
 import './App.css';
 import { WalletTypes } from './utils/config';
-import { getGeneratePsbt, pushTx } from './utils/routes';
-import { waitingSignPsbt } from './utils/action';
+import { cancelRuneSwap, getSwapPsbt, pushTx } from './utils/routes/swapRoutes';
+import { delay, signPsbt, waitingSignPsbt } from './utils/action';
 import toast from 'react-hot-toast';
+import { testRoutes } from './utils/routes/testRoutes';
+import { getTaprootMusigList } from './utils/routes/userRoutes';
+import { getSendBtcPsbt, pushSendBtcTx } from './utils/routes/airdropRoute';
 
 const Wallet: React.FC = () => {
 
   const [address, setAddress] = useState<string>("");
   const [pubkey, setPubkey] = useState<string>("");
-  const [ordinalAddress, setOrdinalAddress] = useState<string>("");
-  const [ordinalPubkey, setOrdinalPubkey] = useState<string>("");
   const [sendingAmount, setSendingAmount] = useState<number>(0);
+  const [sendingAddress, setSendingAddress] = useState<string>("");
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [walletType, setWalletType] = useState<string>("");
   const [txId, setTxId] = useState<string>("");
+  const [adminList, setAdminList] = useState<string[]>([]);
 
   const connectUnisatWallet = async () => {
     try {
+      // const tempAdminList = await getTaprootMusigList();
       const tempAddress = await (window as any).unisat.requestAccounts();
       const pubkey = await (window as any).unisat.getPublicKey();
 
+      // setAdminList(tempAdminList);
+      setAdminList([]);
       setAddress(tempAddress[0]);
       setPubkey(pubkey);
       setWalletConnected(true);
@@ -38,88 +44,94 @@ const Wallet: React.FC = () => {
     }
   };
 
-  const connectXverseWallet = async () => {
-    await getAddress({
-      payload: {
-        purposes: [
-          AddressPurpose.Ordinals,
-          AddressPurpose.Payment,
-          AddressPurpose.Stacks,
-        ],
-        message: "Ordinal Raffle Site",
-        network: {
-          type: BitcoinNetworkType.Testnet,
-        },
-      },
-      onFinish: (response) => {
-        setWalletType(WalletTypes.XVERSE);
-        const paymentAddressItem = response.addresses.find(
-          (address) => address.purpose === AddressPurpose.Payment
-        );
-        setAddress(paymentAddressItem?.address as string);
-        setPubkey(paymentAddressItem?.publicKey as string);
-
-        const ordinalsAddressItem = response.addresses.find(
-          (address) => address.purpose === AddressPurpose.Ordinals
-        );
-        setOrdinalAddress(ordinalsAddressItem?.address as string);
-        setOrdinalPubkey(ordinalsAddressItem?.publicKey as string);
-        setWalletConnected(true);
-        setWalletType("Xverse");
-      },
-      onCancel: () => alert("Request canceled"),
-    });
-  }
-
-  const connectHiroWallet = async () => {
-    setWalletConnected(true);
-    setWalletType("Hiro");
-  }
-
   const handleSubmit = async () => {
-    if (!pubkey || !address || sendingAmount === 0 || !walletType) {
-      return toast.error("Invalid inputs");
+    if (!pubkey || !address || !sendingAmount) {
+      return alert("You should set token sending amount");
     }
 
+    // if (!adminList.includes(sendingAddress)) {
+    //   return alert("You should select Musig Address on the list");
+    // }
+
     const data = {
-      pubkey: pubkey,
-      address: address,
-      ordinalPubkey: ordinalPubkey,
-      ordinalAddress: ordinalAddress,
+      userPubkey: pubkey,
+      userAddress: address,
       sendingAmount: sendingAmount,
-      walletType: walletType
+      adminAddress: sendingAddress
     };
 
-    const res = await getGeneratePsbt(data);
+    console.log('data :>> ', data);
+
+    const res = await getSwapPsbt(data);
 
     if (res) {
-      const { psbt, inputArray, amount1, amount2 } = res;
-      const signResult = await waitingSignPsbt(psbt, inputArray, address);
+      const { amount1, amount2, multisigInputArray, psbt, userInputArray } = res;
+      const signResult = await waitingSignPsbt(psbt, address, userInputArray);
 
       console.log('signResult :>> ', signResult);
 
       // user signed successfully
       if (signResult.success) {
         const data = {
+          psbt: psbt,
           userSignedHexedPsbt: signResult.data,
           amount1: amount1,
           amount2: amount2,
-          inputArray,
-          walletType
+          userInputArray,
+          multisigInputArray,
+          adminAddress: sendingAddress
         }
 
-        const txId = await pushTx(true, data);
+        const txId = await pushTx(data);
 
         if (txId) {
           toast.success("Rune swap successfully!")
+
           return setTxId(txId);
         } else {
+          const data = {
+            adminAddress: sendingAddress
+          }
+          const res = await cancelRuneSwap(data);
+
           return toast.error("Try again later")
         }
       } else {
-        const txId = await pushTx(false, "sign psbt failed!");
+        const res = await cancelRuneSwap(sendingAddress);
 
         toast.error("Try again later");
+      }
+    } else {
+      await delay(20000);
+
+      const data = {
+        adminAddress: sendingAddress
+      }
+      await cancelRuneSwap(data);
+    }
+  }
+
+  const handleClaim = async () => {
+    const data = {
+      userAddress: address,
+      sendingAmount: sendingAmount,
+      adminAddress: sendingAddress
+    }
+
+    const sendBtcres = await getSendBtcPsbt(data);
+
+    if (sendBtcres) {
+      const signResult = await signPsbt(sendBtcres, address);
+
+      console.log('signResult :>> ', signResult);
+
+      if (signResult) {
+        const data = {
+          userAddress: address,
+          adminAddress: sendingAddress,
+          rawTx: signResult
+        }
+        const pushTx = await pushSendBtcTx(data);
       }
     }
   }
@@ -139,15 +151,30 @@ const Wallet: React.FC = () => {
                 <p>{pubkey}</p>
               </div>
               <div className='flex gap-2'>
+                <p>Musig Wallet List</p>
+                {adminList.map((item: string) => {
+                  return <p>{item}</p>
+                })}
+              </div>
+              <div className='flex gap-2'>
+                <p>Set MusigWallet</p>
+                <input type="string" className='text-slate-950' value={sendingAddress} placeholder='Enter one in Musig wallet list' onChange={(e) => setSendingAddress(e.target.value)} />
+              </div>
+              <div className='flex gap-2'>
                 <p>Set Amount</p>
                 <input type="number" className='text-slate-950' value={sendingAmount} onChange={(e) => setSendingAmount(e.target.valueAsNumber)} />
               </div>
               <div className='flex gap-2'>
-                <p>Txid:</p>
-                <p>{txId ? txId : ""}</p>
+                {
+                  txId && <>
+                    <p>Txid</p>
+                    <p>{txId}</p>
+                  </>
+                }
               </div>
             </div>
-            <button onClick={handleSubmit}>Submit</button>
+            <div><button onClick={() => handleSubmit()}>Submit</button></div>
+            <div><button onClick={() => handleClaim()}>Claim airdrop</button></div>
           </div>
           : <div className='flex'>
             <button

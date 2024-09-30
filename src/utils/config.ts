@@ -1,4 +1,4 @@
-export const usersURL = "http://localhost:5001/api/users"
+export const backendApi = "http://localhost:5001/api"
 
 export enum WalletTypes {
     UNISAT = "Unisat",

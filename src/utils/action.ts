@@ -1,4 +1,4 @@
-export const waitingSignPsbt = async (psbt: string, inputArray: Array<number>, address: string) => {
+export const waitingSignPsbt = async (psbt: string, address: string, inputArray?: Array<number>) => {
     const timeoutPromise = new Promise<void>((resolve) => {
         setTimeout(() => {
             resolve();
@@ -6,7 +6,7 @@ export const waitingSignPsbt = async (psbt: string, inputArray: Array<number>, a
     });
 
     // Race between the async function and timeout
-    const result = await Promise.race([signPsbt(psbt, inputArray, address), timeoutPromise]);
+    const result = await Promise.race([signPsbt(psbt, address, inputArray), timeoutPromise]);
 
     console.log('result :>> ', result);
 
@@ -14,25 +14,31 @@ export const waitingSignPsbt = async (psbt: string, inputArray: Array<number>, a
         // user signed psbt
         return { success: true, data: result }
     } else {
-        //  user not signing psbt within 10s
-        return { success: false, data: "User not signed within 10s" }
+        //  user not signing psbt within 20s
+        return { success: false, data: "User not signed within 20s" }
     }
 };
 
-const signPsbt = async (psbt: string, inputArray: Array<number>, address: string) => {
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+export const signPsbt = async (psbt: string, address: string, inputArray?: Array<number>) => {
     try {
         const toSignInputs: { index: number; address: string }[] = [];
-        inputArray.map((value: number) =>
-            toSignInputs.push({
-                index: value,
-                address: address,
-            })
-        );
 
-        console.log("toSignInputs ==> ", toSignInputs);
-        console.log('psbt :>> ', psbt);
+        let signedPsbt
 
-        const signedPsbt = await (window as any).unisat.signPsbt(psbt, { autoFinalized: false, toSignInputs: toSignInputs });
+        if (inputArray) {
+            inputArray.map((value: number) =>
+                toSignInputs.push({
+                    index: value,
+                    address: address,
+                })
+            );
+
+            signedPsbt = await (window as any).unisat.signPsbt(psbt, { autoFinalized: false, toSignInputs: toSignInputs });
+        } else {
+            signedPsbt = await (window as any).unisat.signPsbt(psbt, { autoFinalized: false });
+        }
 
         return signedPsbt;
     } catch (error) {

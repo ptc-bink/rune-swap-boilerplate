@@ -1,20 +1,12 @@
 import axios from 'axios';
-import { usersURL } from './config';
+import { backendApi } from '../config';
 import toast from 'react-hot-toast';
 
-export const getGeneratePsbt = async (data: any) => {
+export const testRoutes = async (data: any) => {
     try {
-        const res = await axios.post(`${usersURL}/generatePsbt`, data);
+        const res = await axios.get(`${backendApi}/test/test`);
 
         console.log('res.data :>> ', res.data);
-
-        if (res.status === 200) {
-            if (res.data.success) {
-                return res.data.data
-            } else {
-                alert(res.data.data)
-            }
-        }
     } catch (error) {
         throw error
     }
@@ -29,7 +21,7 @@ export const pushTx = async (success: boolean, data: any) => {
 
         console.log('req :>> ', req);
 
-        const res = await axios.post(`${usersURL}/pushPsbt`, req);
+        const res = await axios.post(`${backendApi}/pushPsbt`, req);
 
         console.log('res.data :>> ', res.data);
         if (res.status === 200) {
